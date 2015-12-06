@@ -1,0 +1,151 @@
+\documentclass[a4paper]{article}
+
+	%\usepackage{showframe}
+	\usepackage{amsmath}
+		\everymath{\displaystyle}
+	\usepackage{amsfonts}
+	\usepackage{pgfplots}
+		\pgfplotsset{compat=1.5}
+	\usepackage{mathrsfs}
+	%\usepackage{layouts}
+	\usepackage[swedish]{babel}
+	\usepackage[utf8]{inputenc}
+	\usepackage{pdfpages}
+	\usepackage{algorithm}
+	\usepackage{algpseudocode}
+
+	\renewcommand{\arraystretch}{1.15}
+
+	\title{X59 - Essä\\Använda pekare till pekare (dubbelpekare) på ett lämpligt sätt i ett program}
+	\author{Tim Svensson}
+	\date{}
+
+	\begin{document}
+	\pagenumbering{roman}
+
+	\maketitle
+		\pagebreak
+	\pagenumbering{arabic}
+
+	\section*{Inledningsvis} % Inledning
+
+			I \emph{C} är pekare ett utav programmerarens mest flitigt använda verktyg. De är så pass viktiga att det i princip inte går att skriva ett fungerande program i \emph{C} utan att ha en grundläggande förståelse i hur de fungerar. Men som allt har även pekare problem relaterade till dess implementation.
+
+			I denna essä presenteras dubbelpekare som en lösning för en viss typ utav problem relaterad till implementationen utav pekare.
+
+	\section*{Insert-algoritmer}
+
+		Nedan följer två exempellösningar på hur nya noder läggs till i ett binärtsökträd skrivet i \emph{C}.
+
+		\subsection*{Binärt sökträd}
+
+			Exempel på en datastruktur för ett binärt sökträd implementerat i \emph{C}.
+
+			\begin{algorithm}
+				\caption{Binary Search Tree}
+				\label{Binary Tree}
+				\begin{algorithmic}[1]
+					\State typedef struct \_tree tree;
+					\State typedef struct \_node node; \\
+					
+					\State struct \_tree \{
+						\State \hspace{0.5cm} node* root;
+						\State \}; \\
+					
+					\State struct \_node \{
+						\State \hspace{0.5cm} void* content;
+						\State \hspace{0.5cm} void* key; \\
+					
+						\State \hspace{0.5cm} node* left;
+						\State \hspace{0.5cm} node* right;
+					\State \};
+				\end{algorithmic}
+			\end{algorithm}
+
+			All information som varje nod håller existerar på minnesplats \emph{content} och nyckeln som används för att söka igenom datastrukturen ligger på minnesplats \emph{key}. Då detta är en generell implementation utav datastrukturen så existerar det ingen information om vilken typ av data som ligger på de ovan nämnda minnesplatserna. Det antas att i andra delar utav prgrammet där det är relevant existerar det funktioner som kan hantera de datatyper som ligger på de minnesplatserna.
+
+			\pagebreak
+
+		\subsection*{Insert-algoritm med pekare} % Exempellösning, enkelpekare
+
+			Exempel på en algoritm som använder pekare för att lägga till noder i trädstrukturen. Vi antar att det existerar en funktion \emph{key\_compare} som klarar att jämföra två nycklar utav den typ detta träd använder.
+			
+			\begin{algorithm}
+				\caption{Insertion Algorithm}
+				\label{Insertioin Algorithm}
+				\begin{algorithmic}[1]
+					\State void insert\_aux(node* current, node* n) \{
+						\State \hspace{0.5cm} int compare\_result = key\_compare(current-$>$key, n-$>$key);
+						\State \hspace{0.5cm} if (compare\_result $<$ 0) \{
+							\State \hspace{1cm} if (current-$>$left) \{
+								\State \hspace{1.5cm} insert\_aux(current-$>$left, n);
+							\State \hspace{1cm} \} else \{
+								\State \hspace{1.5cm} current-$>$left = n;
+							\State \hspace{1cm} \}
+						\State \hspace{0.5cm} \} else if (compare\_result $>$ 0) \{
+							\State \hspace{1cm} if (current-$>$right) \{
+								\State \hspace{1.5cm} insert\_aux(current-$>$right, n);
+							\State \hspace{1cm} \} else \{
+								\State \hspace{1.5cm} current-$>$right = n;
+							\State \hspace{1cm} \}
+						\State \hspace{0.5cm} \} else \{
+							\State \hspace{1cm} // trying to insert a node that already is in the tree!
+						\State \hspace{0.5cm} \}
+					\State \} \\
+
+					\State void insert(tree* t, node* n) \{
+						\State \hspace{0.5cm} if (t-$>$root) \{
+							\State \hspace{1cm} insert\_aux(t-$>$root, n);
+						\State \hspace{0.5cm} \} else \{
+							\State \hspace{1cm} t-$>$root = n;
+						\State \hspace{0.5cm} \}
+					\State \}
+				\end{algorithmic}
+			\end{algorithm}
+
+			I detta exempel är funktionerna \emph{insert} och \emph{insert\_aux} implementerade med pekare. Som följd av att pekare används existerar det ingen information om vilken den föregående noden är. Detta medför att koden måste skrivas för att gardera sig emot att den ``trillar ut'' ur trädstrukturen. Det innebär att innan det rekursiva anropet kan utföras måste det undersökas ifall minnesplatsen till höger/vänster innehåller en giltig adress. Detta gör att koden behöver ytterligare en nivå utav \emph{if}-satser för att vara fungerande. Detta gör att koden blir svårare att läsa på grund utav det ökade djupet.
+
+			\pagebreak
+
+		\subsection*{Insert-algroitm med dubbelpekare} % Exempellösning, dubbelpekare
+
+			Exempel på en algoritm som använder dubbelpekare för att lägga till noder i trädstrukturen. Vi antar att det existerar en funktion \emph{key\_compare} som klarar att jämföra två nycklar utav den typ detta träd använder.
+			
+			\begin{algorithm}
+				\caption{Insertion Algorithm using double pointers}
+				\label{Insertioin Algorithm, double pointers}
+				\begin{algorithmic}[1]
+					\State void insert\_aux(node** current, node* n) \{
+						\State \hspace{0.5cm} if (*current == null) \{
+							\State \hspace{1cm} *current = n;
+							\State \hspace{1cm} return;
+						\State \hspace{0.5cm} \}
+						\State \hspace{0.5cm} int compare\_result $=$ key\_compare((*current)-$>$key, n-$>$key\_compare)
+						\State \hspace{0.5cm} if (compare\_result $<$ 0) \{
+							\State \hspace{1cm} node** left = \&((*current)-$>$left);
+							\State \hspace{1cm} insert\_aux(left, n);
+						\State \hspace{0.5cm} \} else if (compare\_result $>$ 0) \{
+							\State \hspace{1cm} node** right = \&((*current)-$>$right);
+							\State \hspace{1cm} insert\_aux(right, n);
+						\State \hspace{0.5cm} \} else \{
+							\State \hspace{1cm} // trying to insert a node that already is in the tree!
+						\State \hspace{0.5cm} \}
+					\State \} \\
+
+					\State void insert(tree* t, node* n) \{
+						\State \hspace{0.5cm} insert\_aux(\&(t-$>$root);
+					\State \}
+				\end{algorithmic}
+			\end{algorithm}
+
+			\emph{insert}-funktionen är i detta exempel reduserad till endast en rad kod. Den enda funktionaliteten är att den hämtar värdet på rotpekaren i det aktuella trädet och kallar sedan på \emph{insert\_aux} med resultatet oavsett ifall det är en nullpekare eller ej. Det första som sker i \emph{insert\_aux} är att det undersöks ifall node som algoritmen ``står på'' är tom. Om så är fallet har den funnit platsen där noden ska läggas till och därefter länkas noden \emph{n} in i trädet. \emph{if-else} satsen på rad 6 till 15 har i denna variant endast ett djup på 1 tack vare att algoritmen inte behöver undersöka ifall nästa nod existerar eller ej.
+
+			\pagebreak
+
+	\section*{Sammanfattningsvis} % Avslut, sammanfattning
+
+		Exempellösningarna ovan visar på att lösningen med dubbelpekare resulterar i kortare kod med ytligare \emph{if}-satser. Det är simpelt att följa hur programmeraren har tänkt när denne skrev funktionerna. Det är tack vare att en dubbelpekare innehåller information om vilken den föregående noden var som resulterar i att koden kan skrivas med ytligare \emph{if}-satser.
+
+		Dubbelpekare resulterar i att implementationen utav denna algoritm sker betydligt effektivare. Den skrivs på totalt färre rader och \emph{if}-satserna är ytligare än i exemplet med pekare. Koden blir därmed kompaktare och lättare att läsa samtidigt som de möjliga felen som kan uppstå blir färre.
+
+\end{document}
